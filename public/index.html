@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JON-CITY 원격 바탕화면</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #151a21; color: #eef2f7; font-family: system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 18px; min-height: 62px; }
+  #device { font-weight: 700; } #location { color: #a8b4c2; }
+  button { margin-left: auto; padding: 8px 12px; cursor: pointer; }
+  iframe { display: block; border: 0; width: 100%; height: calc(100dvh - 62px); }
+  #help { padding: 18px; color: #cbd5e1; line-height: 1.7; }
+</style>
+<header><span id="device">JON-CITY</span><span id="location"></span><button id="toggle" disabled>바탕화면 연결</button></header>
+<div id="help">바탕화면 연결을 누르면 원격 접속 비밀번호를 입력합니다.<br>
+설정한 비밀번호를 그대로 입력하세요. VNC 인증은 앞 8자만 사용합니다.<br>
+연결 종료 시 화면 전송 프로세스가 종료됩니다. 실행 중인 Jetson 프로그램은 계속 동작합니다.<br>
+원격 연결은 최대 30분이며, 다시 연결하면 비밀번호를 다시 입력합니다.<br>
+접속을 여러 번 시도해 제한된 경우 60초 후 다시 시도하세요.<br>
+브라우저가 가로채는 단축키는 원격 화면의 noVNC 메뉴에서 전송하세요.</div>
+<iframe id="desktop" title="Jetson 원격 바탕화면" hidden allow="fullscreen"></iframe>
+<script>
+  const desktop = document.getElementById('desktop');
+  const toggle = document.getElementById('toggle');
+  const help = document.getElementById('help');
+  let connected = false;
+  toggle.addEventListener('click', () => {
+    connected = !connected;
+    if (connected) {
+      const params = new URLSearchParams({autoconnect: 'true', reconnect: 'false',
+        resize: 'scale', path: 'websockify', shared: 'true', view_only: 'false'});
+      desktop.src = '/novnc/vnc.html?' + params;
+    } else {
+      desktop.src = 'about:blank';
+    }
+    desktop.hidden = !connected;
+    desktop.style.display = connected ? 'block' : 'none';
+    help.hidden = connected;
+    toggle.textContent = connected ? '연결 종료' : '바탕화면 연결';
+  });
+  desktop.style.display = 'none';
+  fetch('/device.json', {cache: 'no-store'}).then(response => {
+    if (!response.ok) throw new Error('장비 정보 조회 실패');
+    return response.json();
+  }).then(info => {
+    document.getElementById('device').textContent = info.device_id;
+    document.getElementById('location').textContent = info.location;
+    document.title = info.device_id + ' 원격 바탕화면';
+    toggle.disabled = false;
+  }).catch(() => { help.textContent = '장비 정보 확인 실패. 새로고침 후 다시 접속하세요.'; });
+</script>
+</html>
